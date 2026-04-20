@@ -21,7 +21,7 @@ namespace XOI_Integration.DataFactory.InheritedObjects
             CustomerName = CustomerName = customerInfo.Name;
             JobLocation = await operation.ProjectGetJobLocationAsync(customerInfo);
             OrderNumber = $"PR-{await operation.ProjectGetProjectNumberAsync()}";
-            Label = OrderNumber;
+            Label = $"{CustomerName} {OrderNumber} {JobLocation}";
             Tags = Array.Empty<string>();
             TagSuggestions = Array.Empty<string>();
             InternalNote = string.IsNullOrEmpty(await operation.ProjectGetInternalNoteAsync())
