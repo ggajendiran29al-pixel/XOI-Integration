@@ -206,7 +206,7 @@ namespace XOI_Integration.DataFactory.InheritedObjects.OperationsForInheritedObj
                 address = sb.ToString();
             }
 
-            return address;
+            return address.Replace("\r\n", " ").Replace("\n", " ").Trim();
         }
         // Started By GG on 19/08/2025
         // Helper method to extract aliased string values
