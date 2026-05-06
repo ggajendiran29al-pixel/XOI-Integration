@@ -80,13 +80,59 @@ namespace XOI_Integration
                         }
                         else
                         {
-                            // 🔸 General job update (no workflow job)
                             _log.LogInformation($"Job update detected (no WorkflowJobId). Processing job summary for JobId: {response.JobId}");
-
+                            //MAIN ASSET SUMMARY (normal job summary)
                             var xOiToCustomerAssetData = await xOiOperation.GetJobSummaryAsync(response.JobId, null);
+                            //Populate WorkSummary when workflowJobId is missing
+                            if (xOiJobInfo.WorkSummary == null || !xOiJobInfo.WorkSummary.IsFilled())
+                            {
+                                _log.LogInformation("[SUMMARY-FETCH] WorkSummary is missing. Fetching fallback workflow summary...");
+                                xOiJobInfo.WorkSummary = await xOiOperation.GetJobSummaryWorkflowAsync(response.JobId, null);
+                            }
+
                             var customerAssetDataHandler = new CustomerAssetDataHandler(_log);
-                            await customerAssetDataHandler.HandleCustomerAssetDataAsync(xOiToCustomerAssetData, xOiJobInfo, response.JobId);
+                            await customerAssetDataHandler.HandleCustomerAssetDataAsync(
+                                xOiToCustomerAssetData,
+                                xOiJobInfo,
+                                response.JobId
+                            );
                         }
+                        //Calling Booking Notes when no workflowId
+                        _log.LogInformation("[DEBUG] Booking Note Handler called (general job update) -- WorkflowJobId is empty");
+
+                        var xOiWorkSummary = xOiJobInfo.WorkSummary;
+
+                        if (xOiWorkSummary == null)
+                        {
+                            _log.LogWarning("[NOTE-DEBUG] xOiJobInfo.WorkSummary is NULL. Booking notes will not be created.");
+                        }
+                        else
+                        {
+                            _log.LogInformation($"[NOTE-DEBUG] WorkSummary populated: " +
+                                                $"WorkflowName='{xOiWorkSummary.WorkflowName}', " +
+                                                $"UserInitial='{xOiWorkSummary.UserInitial}', " +
+                                                $"HasSummary='{!string.IsNullOrEmpty(xOiWorkSummary.WorkSummary)}', " +
+                                                $"CustomerAssetId='{xOiWorkSummary.CustomerAssetId}'");
+
+                            bool isFilled = xOiWorkSummary.IsFilled();
+                            _log.LogInformation($"[NOTE-DEBUG] IsFilled() returned {isFilled}");
+
+                            if (isFilled)
+                            {
+                                _log.LogInformation("[NOTE-DEBUG] Calling CreateBookableResourceBookingNoteAsync...");
+                                await BookableResourceWorkSummaryDataHandler.CreateBookableResourceBookingNoteAsync(
+                                    _log,
+                                    xOiWorkSummary,
+                                    response.JobId
+                                );
+                                _log.LogInformation("[NOTE-DEBUG] Returned from CreateBookableResourceBookingNoteAsync.");
+                            }
+                            else
+                            {
+                                _log.LogWarning("[NOTE-DEBUG] WorkSummary.IsFilled() is FALSE. Booking notes will not be created.");
+                            }
+                        }
+
 
                         _log.LogInformation("Webhook end operations");
                         return new OkObjectResult("XoiToCeUpdateBooking function completed");

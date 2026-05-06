@@ -117,7 +117,7 @@ namespace XOI_Integration.DataFactory.InheritedObjects.OperationsForInheritedObj
                 sb.Append(entity.GetAttributeValue<string>("address1_country"));
             }
 
-            return sb.ToString().Replace("\r\n", " ").Replace("\n", " ").Trim();
+            return sb.ToString(); 
         }
 
         public async Task<string> ProjectGetProjectNumberAsync()

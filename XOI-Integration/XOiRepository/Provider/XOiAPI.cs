@@ -1,14 +1,7 @@
-﻿using GraphQL.Client.Abstractions;
+﻿using GraphQL;
 using GraphQL.Client.Http;
-using GraphQL.Client.Serializer.Newtonsoft;
-using GraphQL;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using XOI_Integration.XOiRepository.XOiTokenProvider;
-using Newtonsoft.Json;
 
 namespace XOI_Integration.XOiRepository.Provider
 {
@@ -21,7 +14,7 @@ namespace XOI_Integration.XOiRepository.Provider
             _graphQlClient = XOiAPIConnectionClient.Instance;
         }
 
-        public async Task<GraphQLResponse<T>> SendRequestAsync<T>(string query, dynamic variables)
+        public async Task<GraphQLResponse<T>> SendRequestAsync<T>(string query, object variables)
         {
             var graphQlRequest = new GraphQLRequest
             {
@@ -32,9 +25,7 @@ namespace XOI_Integration.XOiRepository.Provider
             var graphQlResponse = await _graphQlClient.SendQueryAsync<T>(graphQlRequest);
 
             if (graphQlResponse == null)
-            {
                 throw new Exception("GraphQL response is null.");
-            }
 
             return graphQlResponse;
         }
