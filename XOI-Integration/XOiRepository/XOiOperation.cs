@@ -271,14 +271,14 @@ namespace XOI_Integration.XOiRepository
         {
             var response = await GetJobSummaryResponseAsync(jobId, workflowJobId);
 
-            return XOiProcessResponse.BuildXOiToCustomerAssetData(_log,response);
+            return await XOiProcessResponse.BuildXOiToCustomerAssetData(_log,response);
         }
 
         public async Task<XOiWorkSummaryToBookableResourceData> GetJobSummaryWorkflowAsync(string jobId, string workflowJobId)
         {
             var response = await GetJobSummaryResponseAsync(jobId, workflowJobId);
 
-            return XOiProcessResponse.BuildXOiWorkSummaryToBookableResourceData(_log, response, workflowJobId);
+            return await XOiProcessResponse.BuildXOiWorkSummaryToBookableResourceData(_log, response, workflowJobId);
         }
 
 
