@@ -303,7 +303,7 @@ namespace XOI_Integration.XOiRepository
             try
             {
                 var response = await GetJobSummaryResponseAsync(jobId, workflowJobId);
-                return XOiProcessResponse.BuildXOiToCustomerAssetData(_log, response);
+                return await XOiProcessResponse.BuildXOiToCustomerAssetData(_log, response);
             }
             catch (Exception ex)
             {
@@ -318,7 +318,7 @@ namespace XOI_Integration.XOiRepository
             try
             {
                 var response = await GetJobSummaryResponseAsync(jobId, workflowJobId);
-                return XOiProcessResponse.BuildXOiWorkSummaryToBookableResourceData(_log, response, workflowJobId);
+                return await XOiProcessResponse.BuildXOiWorkSummaryToBookableResourceData(_log, response, workflowJobId);
             }
             catch (Exception ex)
             {

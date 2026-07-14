@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using XOI_Integration.DataModels.Enums;
+using XOI_Integration.DataverseRepository.Operations;
 using XOI_Integration.XOiRepository.Provider;
 using XOI_Integration.XOiRepository.XOiDataModels;
 
@@ -62,7 +63,7 @@ namespace XOI_Integration.XOiRepository.Helper
             return xOiToBookableResourceData;
         }
 
-        public static List<XOiToCustomerAssetData> BuildXOiToCustomerAssetData(ILogger _log, GraphQLResponse<XOiJobSummaryResponse> graphQlResponse)
+        public static async Task<List<XOiToCustomerAssetData>> BuildXOiToCustomerAssetData(ILogger _log, GraphQLResponse<XOiJobSummaryResponse> graphQlResponse)
         {
             _log.LogInformation("Start building XOi data into a customer asset");
 
@@ -75,8 +76,16 @@ namespace XOI_Integration.XOiRepository.Helper
 
             foreach (var documentation in graphQlResponse.Data.GetJobSummary.JobSummary.Documentation)
             {
-                if (documentation.Traits.Contains("processed") && documentation.Traits.Contains("dataplate") 
-                    && documentation.Traits.Contains("not_a_dataplate") == false 
+                if (IsWorkflowExcludedFromSync(documentation.WorkflowName))
+                {
+                    var message = $"Workflow '{documentation.WorkflowName}' excluded from FS asset sync per ExcludedWorkflowNames configuration.";
+                    _log.LogInformation(message);
+                    await IntegrationLogOperation.CreateAssetsLogAsync(graphQlResponse.Data.GetJobSummary.JobSummary.JobId, JobResponseResult.Success, OperationType.WorkflowExcluded, message);
+                    continue;
+                }
+
+                if (documentation.Traits.Contains("processed") && documentation.Traits.Contains("dataplate")
+                    && documentation.Traits.Contains("not_a_dataplate") == false
                     && documentation.Traits.Contains("pending") == false
                     && documentation.DerivedData != null)
                 {
@@ -108,7 +117,7 @@ namespace XOI_Integration.XOiRepository.Helper
             return uniqueAssets;
         }
 
-        public static XOiWorkSummaryToBookableResourceData BuildXOiWorkSummaryToBookableResourceData(ILogger _log, GraphQLResponse<XOiJobSummaryResponse> graphQlResponse, string workflowId)
+        public static async Task<XOiWorkSummaryToBookableResourceData> BuildXOiWorkSummaryToBookableResourceData(ILogger _log, GraphQLResponse<XOiJobSummaryResponse> graphQlResponse, string workflowId)
         {
             _log.LogInformation("Start building XOi Work Summary data into a bookable resource data");
 
@@ -121,6 +130,14 @@ namespace XOI_Integration.XOiRepository.Helper
 
             foreach (var documentation in graphQlResponse.Data.GetJobSummary.JobSummary.Documentation)
             {
+                if (IsWorkflowExcludedFromSync(documentation.WorkflowName))
+                {
+                    var message = $"Workflow '{documentation.WorkflowName}' excluded from FS booking note sync per ExcludedWorkflowNames configuration.";
+                    _log.LogInformation(message);
+                    await IntegrationLogOperation.CreateAssetsLogAsync(graphQlResponse.Data.GetJobSummary.JobSummary.JobId, JobResponseResult.Success, OperationType.WorkflowExcluded, message);
+                    continue;
+                }
+
                 xOiWorkSummaryToBookableResourceData.Add(new XOiWorkSummaryToBookableResourceData
                 {
                     WorkflowName = documentation.WorkflowName,
@@ -129,7 +146,14 @@ namespace XOI_Integration.XOiRepository.Helper
                     WorkflowId = workflowId,
                     UserInitial = $"{graphQlResponse.Data.GetJobSummary.JobSummary.Assignees.FirstOrDefault().GivenName} {graphQlResponse.Data.GetJobSummary.JobSummary.Assignees.FirstOrDefault().FamilyName}"
                 }); ;
-                 
+
+            }
+
+            if (!xOiWorkSummaryToBookableResourceData.Any())
+            {
+                _log.LogInformation("Finish building XOi Work Summary data into a bookable resource data - no eligible workflows to sync");
+
+                return null;
             }
 
             var groupedByWorkflow = xOiWorkSummaryToBookableResourceData.GroupBy(item => item.WorkflowName);
@@ -137,8 +161,18 @@ namespace XOI_Integration.XOiRepository.Helper
             XOiWorkSummaryToBookableResourceData uniqueNote = groupedByWorkflow.FirstOrDefault().FirstOrDefault();
 
             _log.LogInformation("Finish building XOi Work Summary data into a bookable resource data");
-            
+
             return uniqueNote;
+        }
+
+        private static bool IsWorkflowExcludedFromSync(string workflowName)
+        {
+            var excludedWorkflowNames = Environment.GetEnvironmentVariable("ExcludedWorkflowNames", EnvironmentVariableTarget.Process)
+                ?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(name => name.Trim())
+                ?? Enumerable.Empty<string>();
+
+            return excludedWorkflowNames.Any(excluded => string.Equals(excluded, workflowName, StringComparison.OrdinalIgnoreCase));
         }
 
 
