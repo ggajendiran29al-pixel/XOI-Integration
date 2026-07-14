@@ -11,6 +11,8 @@ namespace XOI_Integration.XOiRepository.XOiDataModels
     {
         public string CustomerName { get; set; }
         public string OrderNumber { get; set; }
-        public List<string> AssigneeIds { get; set; }  
+        public List<string> AssigneeIds { get; set; }
+
+        public XOiWorkSummaryToBookableResourceData WorkSummary { get; set; }
     }
 }

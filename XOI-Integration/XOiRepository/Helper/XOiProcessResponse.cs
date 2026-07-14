@@ -41,9 +41,14 @@ namespace XOI_Integration.XOiRepository.Helper
                         xOiToBookableResourceData.XoiVisionJobShareURL = graphQlResponse.Data.CreateJob.AdditionalActionsResults.CreatePublicShare.ShareLink;
                         xOiToBookableResourceData.XoiVisionWebURL = graphQlResponse.Data.CreateJob.Job.DeepLinks.VisionWeb.ViewJob.Url; 
                         break;
+                        //update on Feb18th for Capturing retry bookings
                     case OperationType.Update:
                         xOiToBookableResourceData.XOiVisionJobId = graphQlResponse.Data.UpdateJob.Job.Id;
+                        xOiToBookableResourceData.XoiVisionJobShareURL = graphQlResponse.Data.UpdateJob.AdditionalActionsResults?.CreatePublicShare?.ShareLink;
+                        xOiToBookableResourceData.XoiVisionWebURL = graphQlResponse.Data.UpdateJob.Job.DeepLinks?.VisionWeb?.ViewJob?.Url;
+                        xOiToBookableResourceData.XoiVisionJobURL = graphQlResponse.Data.UpdateJob.Job.DeepLinks?.VisionMobile?.EditJob?.Url;
                         break;
+
                     default:
                         break;
                 }

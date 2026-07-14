@@ -8,7 +8,10 @@ namespace XOI_Integration.DataModels
 {
     public class BookableResourceBookingNote
     {
+        public Guid BookingId { get; set; } //added on 6th feb
         public string Note { get; set; }
         public Guid NoteId { get; set; }
+
+        public string Hash { get; set; } //added on 10 march
     }
 }

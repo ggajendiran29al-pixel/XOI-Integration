@@ -74,9 +74,17 @@ namespace XOI_Integration.DataverseRepository.Operations
                               $"{Environment.NewLine}{customerJobshareLink}";
 
                 // Check if note already exists (avoid duplicates)
-                if (existingNotes.Any(n => NoteEquals(n.Note, newNote)))
+                //Updated March 10
+                /*if (existingNotes.Any(n => NoteEquals(n.Note, newNote)))
                 {
                     _log.LogInformation($"✅ Skipping duplicate note for Booking ID {bookableResourceBookingId}");
+                    continue;
+                }*/
+                string hash = ComputeHash(newNote);
+
+                if (existingNotes.Any(n => n.Hash == hash))
+                {
+                    _log.LogInformation($"Skipping duplicate note for Booking ID {bookableResourceBookingId}");
                     continue;
                 }
 
@@ -96,109 +104,12 @@ namespace XOI_Integration.DataverseRepository.Operations
 
             _log.LogInformation("Finish creating Bookable Resource Booking Notes");
         }
-        /*public static async Task CreateBookableResourceBookingNoteAsync(
-    ILogger _log,
-    XOiWorkSummaryToBookableResourceData xOiWorkSummary,
-    string jobId)
+        private static string ComputeHash(string input)
         {
-            _log.LogInformation($"[XOI] Start creating Bookable Resource Booking Timeline for JobID: {jobId}");
-
-            Guid bookableResourceBookingId = await GetBookableResourceBookingIdAsync(jobId);
-            _log.LogInformation($"[XOI] Resolved Booking ID: {bookableResourceBookingId}");
-
-            string customerJobshareLink = await GetBookableResourceBookingCustomerJobShareLinkAsync(bookableResourceBookingId);
-            _log.LogInformation($"[XOI] Customer Share Link: {customerJobshareLink ?? "null"}");
-
-            // Diagnostic — Log hash of note content for deduplication analysis
-            string noteContent = $"[{xOiWorkSummary.WorkflowName}] Summary from ({xOiWorkSummary.UserInitial}): {xOiWorkSummary.WorkSummary}{Environment.NewLine}{customerJobshareLink}";
-            string noteHash = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(noteContent.Substring(0, Math.Min(50, noteContent.Length))));
-            _log.LogInformation($"[XOI] Note Hash (first 50 chars): {noteHash}");
-
-            // Optional: Add deduplication check before creating
-            var existingNotes = await GetBookableResourceBookingNotes(jobId);
-            if (existingNotes.Any(n => n.Note == noteContent))
-            {
-                _log.LogWarning($"[XOI] Duplicate note detected for JobID: {jobId}, skipping creation.");
-                return;
-            }
-
-            Entity note = new Entity("msdyn_bookableresourcebookingquicknote")
-            {
-                ["msdyn_quicknote_lookup_entity"] = new EntityReference("bookableresourcebooking", bookableResourceBookingId),
-                ["msdyn_text"] = noteContent
-            };
-
-            _log.LogInformation($"[XOI] Sending note create request to Dataverse...");
-
-            try
-            {
-                await DataverseApi.Instance.CreateAsync(note);
-                _log.LogInformation($"[XOI] Note successfully created in Dataverse for BookingID: {bookableResourceBookingId}");
-            }
-            catch (Exception ex)
-            {
-                _log.LogError($"[XOI] ERROR creating note: {ex.Message}\n{ex.StackTrace}");
-                throw;
-            }
-
-            _log.LogInformation($"[XOI] Finish creating Bookable Resource Booking Note for JobID: {jobId}");
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            var bytes = System.Text.Encoding.UTF8.GetBytes(input ?? "");
+            return Convert.ToHexString(sha.ComputeHash(bytes));
         }
-*/
-        /* public static async Task CreateBookableResourceBookingNoteAsync(
-     ILogger _log,
-     XOiWorkSummaryToBookableResourceData xOiWorkSummary,
-     string jobId)
-         {
-             _log.LogInformation($"[XOI] Start creating Bookable Resource Booking Timeline for JobID: {jobId}");
-
-             var bookingIds = await GetBookableResourceBookingIdsAsync(jobId);
-             if (bookingIds == null || !bookingIds.Any())
-             {
-                 _log.LogWarning($"[XOI] No bookings found for job {jobId}");
-                 return;
-             }
-
-             foreach (var bookingId in bookingIds)
-             {
-                 string customerJobshareLink = await GetBookableResourceBookingCustomerJobShareLinkAsync(bookingId);
-                 var newNoteText = $"[{xOiWorkSummary.WorkflowName}] Summary from ({xOiWorkSummary.UserInitial}): {xOiWorkSummary.WorkSummary}{Environment.NewLine}{customerJobshareLink}";
-
-                 // 🔹 Fetch notes only for this booking (not all)
-                 QueryExpression query = new QueryExpression("msdyn_bookableresourcebookingquicknote")
-                 {
-                     ColumnSet = new ColumnSet("msdyn_text"),
-                     Criteria = new FilterExpression
-                     {
-                         Conditions =
-                 {
-                     new ConditionExpression("msdyn_quicknote_lookup_entity", ConditionOperator.Equal, bookingId)
-                 }
-                     }
-                 };
-                 var existingNotes = await DataverseApi.Instance.RetrieveMultipleAsync(query);
-                 bool noteExists = existingNotes.Entities.Any(e => NoteEquals(e.GetAttributeValue<string>("msdyn_text"), newNoteText));
-
-                 if (noteExists)
-                 {
-                     _log.LogInformation($"✅ Skipping duplicate note for booking {bookingId} (already exists).");
-                     continue;
-                 }
-
-                 // Create new note
-                 _log.LogInformation($"🆕 Creating note for Booking {bookingId}");
-                 Entity note = new Entity("msdyn_bookableresourcebookingquicknote")
-                 {
-                     ["msdyn_quicknote_lookup_entity"] = new EntityReference("bookableresourcebooking", bookingId),
-                     ["msdyn_text"] = newNoteText
-                 };
-
-                 await DataverseApi.Instance.CreateAsync(note);
-                 _log.LogInformation($"✅ Note created for Booking {bookingId}");
-             }
-
-             _log.LogInformation($"[XOI] Finish creating Bookable Resource Booking Note for JobID: {jobId}");
-         }*/
-
         public static async Task<string> GetXOiJobIdAsync(Guid bookableResourceBookingId)
         {
             QueryExpression query = new QueryExpression("bookableresourcebooking")
@@ -261,7 +172,7 @@ namespace XOI_Integration.DataverseRepository.Operations
             {
                 QueryExpression query = new QueryExpression("msdyn_bookableresourcebookingquicknote")
                 {
-                    ColumnSet = new ColumnSet("msdyn_text"),
+                    ColumnSet = new ColumnSet("msdyn_text", "acl_xoisummaryhash"),
                     Criteria = new FilterExpression
                     {
                         Conditions =
@@ -277,8 +188,11 @@ namespace XOI_Integration.DataverseRepository.Operations
                 {
                     notes.Add(new BookableResourceBookingNote
                     {
+                        BookingId = bookableResourceBookingId, //Added on 6th feb
                         Note = entity.GetAttributeValue<string>("msdyn_text"),
-                        NoteId = entity.GetAttributeValue<Guid>("msdyn_bookableresourcebookingquicknoteid")
+                        Hash = entity.GetAttributeValue<string>("acl_xoisummaryhash"),
+                        NoteId = entity.Id //added on 6th feb
+                       //NoteId = entity.GetAttributeValue<Guid>("msdyn_bookableresourcebookingquicknoteid")
                     });
                 }
             }
@@ -369,3 +283,109 @@ namespace XOI_Integration.DataverseRepository.Operations
 
     }
 }
+
+
+//older code
+/*public static async Task CreateBookableResourceBookingNoteAsync(
+ILogger _log,
+XOiWorkSummaryToBookableResourceData xOiWorkSummary,
+string jobId)
+{
+    _log.LogInformation($"[XOI] Start creating Bookable Resource Booking Timeline for JobID: {jobId}");
+
+    Guid bookableResourceBookingId = await GetBookableResourceBookingIdAsync(jobId);
+    _log.LogInformation($"[XOI] Resolved Booking ID: {bookableResourceBookingId}");
+
+    string customerJobshareLink = await GetBookableResourceBookingCustomerJobShareLinkAsync(bookableResourceBookingId);
+    _log.LogInformation($"[XOI] Customer Share Link: {customerJobshareLink ?? "null"}");
+
+    // Diagnostic — Log hash of note content for deduplication analysis
+    string noteContent = $"[{xOiWorkSummary.WorkflowName}] Summary from ({xOiWorkSummary.UserInitial}): {xOiWorkSummary.WorkSummary}{Environment.NewLine}{customerJobshareLink}";
+    string noteHash = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(noteContent.Substring(0, Math.Min(50, noteContent.Length))));
+    _log.LogInformation($"[XOI] Note Hash (first 50 chars): {noteHash}");
+
+    // Optional: Add deduplication check before creating
+    var existingNotes = await GetBookableResourceBookingNotes(jobId);
+    if (existingNotes.Any(n => n.Note == noteContent))
+    {
+        _log.LogWarning($"[XOI] Duplicate note detected for JobID: {jobId}, skipping creation.");
+        return;
+    }
+
+    Entity note = new Entity("msdyn_bookableresourcebookingquicknote")
+    {
+        ["msdyn_quicknote_lookup_entity"] = new EntityReference("bookableresourcebooking", bookableResourceBookingId),
+        ["msdyn_text"] = noteContent
+    };
+
+    _log.LogInformation($"[XOI] Sending note create request to Dataverse...");
+
+    try
+    {
+        await DataverseApi.Instance.CreateAsync(note);
+        _log.LogInformation($"[XOI] Note successfully created in Dataverse for BookingID: {bookableResourceBookingId}");
+    }
+    catch (Exception ex)
+    {
+        _log.LogError($"[XOI] ERROR creating note: {ex.Message}\n{ex.StackTrace}");
+        throw;
+    }
+
+    _log.LogInformation($"[XOI] Finish creating Bookable Resource Booking Note for JobID: {jobId}");
+}
+*/
+/* public static async Task CreateBookableResourceBookingNoteAsync(
+ILogger _log,
+XOiWorkSummaryToBookableResourceData xOiWorkSummary,
+string jobId)
+ {
+     _log.LogInformation($"[XOI] Start creating Bookable Resource Booking Timeline for JobID: {jobId}");
+
+     var bookingIds = await GetBookableResourceBookingIdsAsync(jobId);
+     if (bookingIds == null || !bookingIds.Any())
+     {
+         _log.LogWarning($"[XOI] No bookings found for job {jobId}");
+         return;
+     }
+
+     foreach (var bookingId in bookingIds)
+     {
+         string customerJobshareLink = await GetBookableResourceBookingCustomerJobShareLinkAsync(bookingId);
+         var newNoteText = $"[{xOiWorkSummary.WorkflowName}] Summary from ({xOiWorkSummary.UserInitial}): {xOiWorkSummary.WorkSummary}{Environment.NewLine}{customerJobshareLink}";
+
+         // 🔹 Fetch notes only for this booking (not all)
+         QueryExpression query = new QueryExpression("msdyn_bookableresourcebookingquicknote")
+         {
+             ColumnSet = new ColumnSet("msdyn_text"),
+             Criteria = new FilterExpression
+             {
+                 Conditions =
+         {
+             new ConditionExpression("msdyn_quicknote_lookup_entity", ConditionOperator.Equal, bookingId)
+         }
+             }
+         };
+         var existingNotes = await DataverseApi.Instance.RetrieveMultipleAsync(query);
+         bool noteExists = existingNotes.Entities.Any(e => NoteEquals(e.GetAttributeValue<string>("msdyn_text"), newNoteText));
+
+         if (noteExists)
+         {
+             _log.LogInformation($"✅ Skipping duplicate note for booking {bookingId} (already exists).");
+             continue;
+         }
+
+         // Create new note
+         _log.LogInformation($"🆕 Creating note for Booking {bookingId}");
+         Entity note = new Entity("msdyn_bookableresourcebookingquicknote")
+         {
+             ["msdyn_quicknote_lookup_entity"] = new EntityReference("bookableresourcebooking", bookingId),
+             ["msdyn_text"] = newNoteText
+         };
+
+         await DataverseApi.Instance.CreateAsync(note);
+         _log.LogInformation($"✅ Note created for Booking {bookingId}");
+     }
+
+     _log.LogInformation($"[XOI] Finish creating Bookable Resource Booking Note for JobID: {jobId}");
+ }*/
+
