@@ -10,7 +10,7 @@ namespace XOI_Integration.DataModels.Enums
     {
         Create,
         Update,
-        GetJobSummary, 
+        GetJobSummary,
         GetJob,
         CreateAsset,
         UpdateAsset,

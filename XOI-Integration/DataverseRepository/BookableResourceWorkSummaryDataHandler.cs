@@ -529,6 +529,12 @@ namespace XOI_Integration.DataverseRepository
 /*GG
  /* public static async Task CreateBookableResourceBookingNoteAsync(ILogger _log, XOiWorkSummaryToBookableResourceData xOiWorkSummary, string jobId)
           {
+              if (xOiWorkSummary == null)
+              {
+                  _log.LogInformation("No eligible workflow summary to sync - skipping booking note creation");
+                  return;
+              }
+
               _log.LogInformation("Start creating Bookable Resource Booking Timeline");
 
               var bookingIds = await BookableResourceBookingOperation.GetBookableResourceBookingIdsAsync(jobId);
